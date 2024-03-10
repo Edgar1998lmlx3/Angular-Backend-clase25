@@ -58,6 +58,7 @@ export class AuthService {
     if(!bcryptjs.compareSync(password, user.password)){
       throw new UnauthorizedException('Not valid credentials')
     }
+    
 
     const {password:_, ...rest} = user.toJSON();
     return {
