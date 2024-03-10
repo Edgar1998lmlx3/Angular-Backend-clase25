@@ -7,20 +7,21 @@ import { Model } from 'mongoose';
 import * as bcryptjs from 'bcryptjs'
 import { LoginDto } from './dto/login.dto';
 import { log } from 'console';
+import { JwtService } from '@nestjs/jwt';
+import { JwtPayload } from './interfaces/jwt-payload';
+import { LoginResponse } from './interfaces/login-response';
+import { RegisterUserDto } from './dto/registerUser.dto';
 
 @Injectable()
 export class AuthService {
 
   constructor(
-    @InjectModel(User.name) private userModel: Model<User>
+    @InjectModel(User.name) private userModel: Model<User>,
+    private jwtService: JwtService,
     ) {}
 
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    //console.log(createUserDto.name);
-
-    //const newUser = new this.userModel(createUserDto);
-   // return newUser.save();
 
    try{
 
@@ -42,12 +43,18 @@ export class AuthService {
     }
     throw new InternalServerErrorException('Something terrible happen!! :(')
    }
-
-   
-   
   }
 
-  async login( loginDto: LoginDto){
+  async register(registerdto: RegisterUserDto): Promise<LoginResponse>{
+    const user = await this.create(registerdto);
+    console.log(user);
+    return {
+      user: user,
+      token: this.getJwtToken({id: user._id})
+    }
+  }
+
+  async login( loginDto: LoginDto): Promise<LoginResponse>{
     const{email, password} = loginDto;
 
     const user = await this.userModel.findOne({email});
@@ -58,18 +65,19 @@ export class AuthService {
     if(!bcryptjs.compareSync(password, user.password)){
       throw new UnauthorizedException('Not valid credentials')
     }
-    
+
 
     const {password:_, ...rest} = user.toJSON();
     return {
       user: rest,
-      token: 'ABC-123'
+      token: this.getJwtToken({id: user.id}),
     };
     /* User -> token -> asodaksldj12093 ejemplo */
   }
 
-  findAll() {
-    return `This action returns all auth`;
+  
+  findAll():Promise <User[]> {
+    return this.userModel.find();
   }
 
   findOne(id: number) {
@@ -82,5 +90,11 @@ export class AuthService {
 
   remove(id: number) {
     return `This action removes a #${id} auth`;
+  }
+
+  getJwtToken( payload: JwtPayload){
+
+    const token = this.jwtService.sign(payload);
+    return token;
   }
 }
